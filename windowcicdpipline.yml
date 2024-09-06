@@ -1,0 +1,58 @@
+name: .NET Core Windows CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    # Step 1: Checkout the code from the repository
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    # Step 2: Set up .NET Core SDK
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '7.x' # or specify your required .NET version
+    
+    # Step 3: Restore NuGet packages
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    # Step 4: Build the project
+    - name: Build the project
+      run: dotnet build --configuration Release --no-restore
+    
+    # Step 5: Run tests (optional)
+    - name: Run tests
+      run: dotnet test --no-build --verbosity normal
+    
+    # Step 6: Publish the project
+    - name: Publish application
+      run: dotnet publish -c Release -o ./publish
+
+  deploy:
+    runs-on: windows-latest
+    needs: build
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+      
+    # Step 7: Deploy the application (example for IIS deployment using Web Deploy)
+    - name: Deploy using Web Deploy
+      uses: ammaraskar/sync-iis-site@v1
+      with:
+        server: ${{ secrets.IIS_SERVER }}         # IIS Server address (IP/hostname)
+        username: ${{ secrets.IIS_USERNAME }}     # IIS Server username
+        password: ${{ secrets.IIS_PASSWORD }}     # IIS Server password
+        site-name: "Default Web Site"             # IIS Site Name
+        source-folder: ./publish                  # Local path to published files
