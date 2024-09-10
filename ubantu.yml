@@ -1,61 +1,72 @@
-name: .NET
+name: .NET CI/CD
 
-# Trigger the workflow on pushes to the main branch
 on:
   push:
-    branches:
-      - master
-  pull_request:
-    branches:
-      - master
+    branches: [ "dev" ]
 
-# Define jobs that run on Ubuntu runner
 jobs:
   build:
-    runs-on: ubuntu-latest
-    
+    runs-on: windows-latest
+
     steps:
-    # Checkout the code from the repository
+    # Step 1: Checkout the code from the repository
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    # Set up .NET Core SDK
+
+    # Step 2: Set up .NET Core SDK
     - name: Setup .NET Core
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.x' # or specify your required .NET version
-    
-    # Restore NuGet packages
+        dotnet-version: '3.1.x'
+
+    # Step 3: Restore NuGet packages
     - name: Restore dependencies
       run: dotnet restore
-    
-    # Build the project
+
+    # Step 4: Build the project
     - name: Build the project
       run: dotnet build --configuration Release --no-restore
-    
-    # Run tests (if applicable)
-    - name: Run tests
-      run: dotnet test --no-build --verbosity normal
-    
-    # Publish the project (creates publish artifacts)
-    - name: Publish application
-      run: dotnet publish -c Release -o ./publish
 
-  # Deploy job
+    # Step 5: Publish the project
+    - name: Publish application
+      run: dotnet publish -c Release -o ${{ github.workspace }}/publish
+
+    # Step 6: Verify Publish Directory
+    - name: Verify Publish Directory
+      run: dir ${{ github.workspace }}/publish
+
+    # Step 7: Upload artifact (publish folder) for deployment
+    - name: Upload publish folder
+      uses: actions/upload-artifact@v3
+      with:
+        name: publish-folder
+        path: ${{ github.workspace }}/publish
+
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: build
-    
+
     steps:
+    # Step 1: Checkout the code from the repository
     - name: Checkout code
       uses: actions/checkout@v4
-      
-    # Deploy your application (example uses FTP)
+
+    # Step 2: Download the artifact (publish folder) from the build job
+    - name: Download publish folder
+      uses: actions/download-artifact@v3
+      with:
+        name: publish-folder
+
+    # Step 2.1: Verify Downloaded Publish Directory
+    - name: Verify Publish Directory
+      run: dir ./publish
+
+    # Step 3: Deploy via FTP
     - name: Deploy via FTP
       uses: SamKirkland/FTP-Deploy-Action@4.3.0
       with:
         server: ${{ secrets.FTP_SERVER }}
         username: ${{ secrets.FTP_USERNAME }}
         password: ${{ secrets.FTP_PASSWORD }}
-        local-dir: ./publish
-        server-dir: /path/to/deployment/directory
+        local-dir: ./publish/
+        server-dir: C:/Inetpub/vhosts/finnid.in/development.finnid.in/2/
